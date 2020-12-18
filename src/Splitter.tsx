@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import "./App.css";
+import React, { useEffect, useRef } from "react";
+import "./Splitter.css";
 
 export type SplitterProps = {
   style: React.CSSProperties;
