@@ -1,36 +1,23 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { ElementType, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Splitter } from "./Splitter";
-import "./Layout.css";
-import { JsxEmit } from "typescript";
+import { LayoutElementType, HorizontalBoundingBox } from "./types";
 
-type BoundingBox = {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-  height: number;
-  width: number;
-};
-
-type HorizontalBoundingBox = Omit<BoundingBox, "left" | "right">;
-
-enum ElementType {
-  Top,
-  Bottom,
-  Splitter,
-}
-
-const getPosition = (
+export const getPosition = (
   containerBox: HorizontalBoundingBox,
-  elementType: ElementType,
+  elementType: LayoutElementType,
   midPoint?: number
 ): HorizontalBoundingBox => {
   const splitterHeight = 5;
   const { top, bottom, height, width } = containerBox;
-  const topPanelHeight = midPoint ? midPoint : height / 2;
+  const topPanelHeight = (midPoint ? midPoint : height / 2) - top;
+  const bottomPanelTop = topPanelHeight + splitterHeight;
+  const bottomPanelHeight = height - topPanelHeight;
+  const splitterBottom = topPanelHeight + splitterHeight;
+
+  //console.table({elementType,topPanelHeight, bottomPanelBottom, bottomPanelHeight, splitterBottom});
 
   switch (elementType) {
-    case ElementType.Top: {
+    case LayoutElementType.Top: {
       return {
         top,
         width,
@@ -38,19 +25,19 @@ const getPosition = (
         height: topPanelHeight,
       };
     }
-    case ElementType.Bottom: {
+    case LayoutElementType.Bottom: {
       return {
-        top: topPanelHeight + splitterHeight,
+        top: bottomPanelTop,
         width,
         bottom,
-        height: height - topPanelHeight,
+        height: bottomPanelHeight,
       };
     }
-    case ElementType.Splitter: {
+    case LayoutElementType.Splitter: {
       return {
         top: topPanelHeight,
         width,
-        bottom: topPanelHeight + splitterHeight,
+        bottom: splitterBottom,
         height: splitterHeight,
       };
     }
@@ -80,17 +67,18 @@ export enum SplitDirection {
 }
 
 export type LayoutProps = {
+  testId: string,
   componentA: React.ReactNode;
   componentB: React.ReactNode;
   splitDirection?: SplitDirection;
 };
 
-export const Layout = ({ componentA, componentB }: LayoutProps) => {
+export const Layout = ({ componentA, componentB, testId }: LayoutProps) => {
   const continerRef = useRef<HTMLDivElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
   const splitterRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const [dragPosition, setDragePosition] = useState<number | undefined>(
+  const [dragPosition, setDragPosition] = useState<number | undefined>(
     undefined
   );
 
@@ -99,17 +87,18 @@ export const Layout = ({ componentA, componentB }: LayoutProps) => {
   >();
 
   useLayoutEffect(() => {
-    if (continerRef.current) {
-      setContainerSize(continerRef.current.getBoundingClientRect());
-    }
+    console.log(`I am called ${continerRef.current?.id}`);
     console.log(continerRef.current?.getBoundingClientRect());
-  }, []);
 
-  useEffect(() => {
-    if (containerSize) {
-      console.log(getPosition(containerSize, ElementType.Top));
+    if (continerRef.current) {
+      const clientRect = continerRef.current.parentElement?.getBoundingClientRect();
+      updateEl(
+        continerRef.current,
+        clientRect!
+      );
+      setContainerSize(clientRect);
     }
-  }, [containerSize]);
+  }, []);
 
   useEffect(() => {
     if (
@@ -120,41 +109,43 @@ export const Layout = ({ componentA, componentB }: LayoutProps) => {
     ) {
       updateEl(
         topRef.current,
-        getPosition(containerSize, ElementType.Top, dragPosition)
+        getPosition(containerSize, LayoutElementType.Top, dragPosition)
       );
       updateEl(
         splitterRef.current,
-        getPosition(containerSize, ElementType.Splitter, dragPosition)
+        getPosition(containerSize, LayoutElementType.Splitter, dragPosition)
       );
       updateEl(
         bottomRef.current,
-        getPosition(containerSize, ElementType.Bottom, dragPosition)
+        getPosition(containerSize, LayoutElementType.Bottom, dragPosition)
       );
     }
   }, [dragPosition, containerSize]);
 
-  const handleOnChange = (position: number) => setDragePosition(position);
+  const handleOnChange = (position: number) => setDragPosition(position);
 
   return (
-    <div ref={continerRef} className="container">
+    <div ref={continerRef} id={testId}>
       {containerSize && (
         <>
           <div
             ref={topRef}
             className="top"
-            style={getStyle(getPosition(containerSize, ElementType.Top))}
+            style={getStyle(getPosition(containerSize, LayoutElementType.Top))}
           >
             {componentA}
           </div>
           <Splitter
             ref={splitterRef}
-            style={getStyle(getPosition(containerSize, ElementType.Splitter))}
+            style={getStyle(getPosition(containerSize, LayoutElementType.Splitter))}
             onChange={handleOnChange}
+            maxHeight={containerSize.bottom}
+            minHeight={containerSize.top}
           />
           <div
             ref={bottomRef}
             className="bottom"
-            style={getStyle(getPosition(containerSize, ElementType.Bottom))}
+            style={getStyle(getPosition(containerSize, LayoutElementType.Bottom))}
           >
             {componentB}
           </div>
